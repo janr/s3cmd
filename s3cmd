@@ -107,9 +107,9 @@ def subcmd_buckets_list_all(s3, filenames_only=False):
     response = s3.list_all_buckets()
     for bucket in response["list"]:
         if not filenames_only:
-            format_string = u"%(timestamp)  s3://%(bucket_name)"
+            format_string = u"%(timestamp)s  s3://%(bucket_name)s"
         else:
-            format_string = u"%(bucket_name)"
+            format_string = u"%(bucket_name)s"
 
         output(format_string % {
             'timestamp': formatDateTime(bucket["CreationDate"]),
