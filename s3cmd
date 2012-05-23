@@ -83,13 +83,15 @@ def subcmd_bucket_usage(s3, uri):
     return bucket_size
 
 def cmd_ls(args):
-    s3 = S3(Config())
+    cfg = Config()
+    s3 = S3(cfg)
     if len(args) > 0:
         uri = S3Uri(args[0])
         if uri.type == "s3" and uri.has_bucket():
-            subcmd_bucket_list(s3, uri)
+            subcmd_bucket_list(s3, uri, cfg.filenames_only)
             return
-    subcmd_buckets_list_all(s3)
+    subcmd_buckets_list_all(s3, cfg.filenames_only)
+
 
 def cmd_buckets_list_all_all(args):
     s3 = S3(Config())
@@ -101,15 +103,20 @@ def cmd_buckets_list_all_all(args):
         output(u"")
 
 
-def subcmd_buckets_list_all(s3):
+def subcmd_buckets_list_all(s3, filenames_only=False):
     response = s3.list_all_buckets()
     for bucket in response["list"]:
-        output(u"%s  s3://%s" % (
-            formatDateTime(bucket["CreationDate"]),
-            bucket["Name"],
-            ))
+        if not filenames_only:
+            format_string = u"%(timestamp)  s3://%(bucket_name)"
+        else:
+            format_string = u"%(bucket_name)"
 
-def subcmd_bucket_list(s3, uri):
+        output(format_string % {
+            'timestamp': formatDateTime(bucket["CreationDate"]),
+            'bucket_name': bucket["Name"],
+            })
+
+def subcmd_bucket_list(s3, uri, filenames_only=False):
     bucket = uri.bucket()
     prefix = uri.object()
 
@@ -125,7 +132,9 @@ def subcmd_bucket_list(s3, uri):
         else:
             raise
 
-    if cfg.list_md5:
+    if filenames_only:
+        format_string = u"%(uri)s"
+    elif cfg.list_md5:
         format_string = u"%(timestamp)16s %(size)9s%(coeff)1s  %(md5)32s  %(uri)s"
     else:
         format_string = u"%(timestamp)16s %(size)9s%(coeff)1s  %(uri)s"
@@ -137,7 +146,6 @@ def subcmd_bucket_list(s3, uri):
             "coeff": "",
             "md5": "",
             "uri": uri.compose_uri(bucket, prefix["Prefix"])})
-
     for object in response["list"]:
         size, size_coeff = formatSize(object["Size"], Config().human_readable_sizes)
         output(format_string % {
@@ -1488,6 +1496,7 @@ def main():
     optparser.add_option(      "--no-encrypt", dest="encrypt", action="store_false", help="Don't encrypt files.")
     optparser.add_option("-f", "--force", dest="force", action="store_true", help="Force overwrite and other dangerous operations.")
     optparser.add_option(      "--continue", dest="get_continue", action="store_true", help="Continue getting a partially downloaded file (only for [get] command).")
+    optparser.add_option(      "--filenames-only", dest="filenames_only", action="store_true", help="List filenames/bucketnames only, no metadata")
     optparser.add_option(      "--skip-existing", dest="skip_existing", action="store_true", help="Skip over files that exist at the destination (only for [get] and [sync] commands).")
     optparser.add_option("-r", "--recursive", dest="recursive", action="store_true", help="Recursive upload, download or removal.")
     optparser.add_option(      "--check-md5", dest="check_md5", action="store_true", help="Check MD5 sums when comparing files for [sync]. (default)")
